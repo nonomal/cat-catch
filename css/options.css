@@ -5,7 +5,8 @@ body {
 }
 .wrapper {
   margin: 0 auto;
-  width: 640px;
+  /* width: 640px; */
+  width: 45rem;
 }
 /* .wrapper input {
   margin-left: 10px;
@@ -123,6 +124,9 @@ input.regex {
 .item .switch {
   margin-right: 50px;
 }
+.item .switchSelect {
+  margin-right: 85px;
+}
 .optionsTitle {
   margin-top: 20px;
 }
@@ -231,14 +235,14 @@ textarea {
   cursor: pointer;
   padding: 5px 10px;
 }
+.select {
+  width: 8rem;
+}
 .m3u8Key {
   width: 300px;
 }
 #PlayerTemplate {
   width: 200px;
-}
-#autoClearMode {
-  width: 100px;
 }
 #errorTsList p {
   color: red;
@@ -351,12 +355,12 @@ textarea {
   word-break: break-all;
   width: 100%;
 }
-.m3u8DL{
+.m3u8DL {
   margin-right: 70px !important;
 }
-.m3u8DL #m3u8dl{
+/* .m3u8DL #m3u8dl{
   width: 8rem;
-}
+} */
 .break-all {
   word-break: break-all;
 }
@@ -436,6 +440,6 @@ a.json-placeholder:hover {
 .width3rem {
   width: 3rem;
 }
-.popupAttr{
+.popupAttr {
   margin-left: 0.5rem;
 }

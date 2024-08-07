@@ -39,8 +39,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 chrome.webRequest.onSendHeaders.addListener(
     function (data) {
         if (G && !G.enable) { return; }
-        const requestHeaders = getRequestHeaders(data);
-        requestHeaders && G.requestHeaders.set(data.requestId, requestHeaders);
+        data.requestHeaders && G.requestHeaders.set(data.requestId, data.requestHeaders);
     }, { urls: ["<all_urls>"] }, ['requestHeaders',
         chrome.webRequest.OnBeforeSendHeadersOptions.EXTRA_HEADERS].filter(Boolean)
 );
@@ -50,7 +49,7 @@ chrome.webRequest.onResponseStarted.addListener(
         try {
             const requestHeaders = G.requestHeaders.get(data.requestId);
             if (requestHeaders) {
-                data.requestHeaders = requestHeaders;
+                data.allRequestHeaders = requestHeaders;
                 G.requestHeaders.delete(data.requestId);
             }
             findMedia(data);
@@ -171,6 +170,7 @@ function findMedia(data, isRegex = false, filter = false, timer = false) {
     }
     chrome.tabs.get(data.tabId, async function (webInfo) {
         if (chrome.runtime.lastError) { return; }
+        data.requestHeaders = getRequestHeaders(data);
         // requestHeaders 中cookie 单独列出来
         if (data.requestHeaders?.cookie) {
             data.cookie = data.requestHeaders.cookie;
@@ -215,7 +215,7 @@ function findMedia(data, isRegex = false, filter = false, timer = false) {
                 });
             }
             if (G.send2local) {
-                try { send2local("catch", info, info.tabId); } catch (e) { console.log(e); }
+                try { send2local("catch", { ...info, requestHeaders: data.allRequestHeaders }, info.tabId); } catch (e) { console.log(e); }
             }
             if (chrome.runtime.lastError) { return; }
         });
@@ -342,15 +342,11 @@ chrome.runtime.onMessage.addListener(function (Message, sender, sendResponse) {
         if (refresh) {
             chrome.tabs.reload(Message.tabId, { bypassCache: true });
         } else {
-            script.i18n && chrome.scripting.executeScript({
-                target: { tabId: Message.tabId, allFrames: script.allFrames },
-                files: ["catch-script/i18n.js"],
-                injectImmediately: true,
-                world: "MAIN"
-            });
+            const files = [`catch-script/${Message.script}`];
+            script.i18n && files.unshift("catch-script/i18n.js");
             chrome.scripting.executeScript({
                 target: { tabId: Message.tabId, allFrames: script.allFrames },
-                files: ["catch-script/" + Message.script],
+                files: files,
                 injectImmediately: true,
                 world: script.world
             });
@@ -424,7 +420,7 @@ chrome.runtime.onMessage.addListener(function (Message, sender, sendResponse) {
         chrome.tabs.query({ url: G.ffmpegConfig.url }, function (tabs) {
             if (chrome.runtime.lastError || !tabs.length) {
                 chrome.tabs.create({ url: G.ffmpegConfig.url, active: Message.active ?? true }, function (tab) {
-                    if(chrome.runtime.lastError){return;}
+                    if (chrome.runtime.lastError) { return; }
                     G.ffmpegConfig.tab = tab.id;
                     G.ffmpegConfig.data = data;
                 });
@@ -499,15 +495,12 @@ chrome.webNavigation.onCommitted.addListener(function (details) {
     // catch-script 脚本
     G.scriptList.forEach(function (item, script) {
         if (!item.tabId.has(details.tabId) || !item.allFrames) { return true; }
-        item.i18n && chrome.scripting.executeScript({
-            target: { tabId: details.tabId, frameIds: [details.frameId] },
-            files: ["catch-script/i18n.js"],
-            injectImmediately: true,
-            world: "MAIN"
-        });
+
+        const files = [`catch-script/${script}`];
+        item.i18n && files.unshift("catch-script/i18n.js");
         chrome.scripting.executeScript({
             target: { tabId: details.tabId, frameIds: [details.frameId] },
-            files: [`catch-script/${script}`],
+            files: files,
             injectImmediately: true,
             world: item.world
         });
@@ -618,9 +611,9 @@ function getResponseHeadersValue(data) {
     return header;
 }
 function getRequestHeaders(data) {
-    if (data.requestHeaders == undefined || data.requestHeaders.length == 0) { return false; }
+    if (data.allRequestHeaders == undefined || data.allRequestHeaders.length == 0) { return false; }
     const header = {};
-    for (let item of data.requestHeaders) {
+    for (let item of data.allRequestHeaders) {
         item.name = item.name.toLowerCase();
         if (item.name == "referer") {
             header.referer = item.value.toLowerCase();
